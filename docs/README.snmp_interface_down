@@ -1,0 +1,34 @@
+README.snmp_interface_down - Ali Basel <ali@basel.name.tr>
+-------------------------------------------------------------------------------
+
+This plugin may be used to stop local intruders by shutting-down their switch port.
+
+This plugin uses the database of the trackerd (http://www.basel.name.tr/projects/tracker/index.html), so it must be set up and running.
+
+All the "snmp_interface_down" plugin does is only to call the shell script "trackersnmp" with the IP address to be blocked; so, before using this pluging, you should test that the above script runs without any problem.
+
+So what does trackersnmp ?
+--------------------------
+Network Tracker builds a table which records which user is connected on which port of a switch by scanning SNMP-enabled devices. It keeps the inventory of these devices up-to-date by scanning the network regularly. Devices are also checked with ping and SNMP, and the user is informed by email when any of the devices is not alive.
+
+trackersnmp first, finds the given IP in that database to obtain the switch IP, SNMP community names, switch port number and ifindex of that port.
+Before shutting down the switch port, trackersnmp queries the switch to be sure that the port belongs really to the given IP, and then, shuts down the port using SNMP.
+It can also send e-mail which contains all of its output.
+
+For more information about trackersnmp please read its documenation.
+
+
+
+To use that plugin add the line below into the snortsam config file:
+snmpinterfacedown	/full_path_of_the/trackersnmp
+
+
+
+If the given IP couldn't be found in the trackerd database, no things happen.
+
+Using than plugin is a very effective, but do not forget to define your servers in the "dontblock" list of the snortsam config file.
+
+
+-------------------------------------------------------------------------------
+$Id: README.snmp_interface_down,v 2.0 2005/07/10 21:17:05 fknobbe Exp $
+

@@ -1,0 +1,60 @@
+README.watchguard - Thomas Maier <Thomas.Maier@arcos.de>
+-------------------------------------------------------------------------------
+
+The Watchguard plugin supports all WatchGuard Firebox System 5.0 or later 
+versions. But NOT the SOHO-Box.
+
+The Watchguard Plugin requires the additional software 'fbidsmate', which is 
+available from the Watchguard website. Download is only permitted if you have 
+an active service contract. Perhaps you find similar files elsewhere on the 
+Internet. There are three different versions depending on the target OS.
+
+ec56fa37eaba84d0a52dd111db76dcf9  fbidsmate.exe (for Windows NT/98/2000)
+15245ba11f109d35fddf424aea42afe9  fbidsmate     (for Solaris)
+74d0b4842b7149474f23c7ab83a2962c  fbidsmate     (for Linux)
+
+To start support for Watchguard you have to add one line to the snortsam.conf
+for each Watchguard you want to initiate the block on. Use the following
+syntax:
+
+   watchguard <path/to/fbidsmate> <ip-of-firebox> <configpassword>
+
+Also you can store the configuration passphrase in encrypted form,
+so you don't have to leave it in the clear in your snortsam.conf. Then you
+can use the following syntax:
+
+   watchguard <path/to/fbidsmate> <ip-of-firebox> file <configpassfile>
+
+To create this configpassfile
+
+   ./fbidsmate import_passphrase <config_passphrase> <filename>
+
+This stores the passphrase in the indicated file with 3DES encryption.  
+Example: 
+
+   ./fbidsmate import_passphrase mySecretPass /etc/fbidsmate.passphrase
+
+Here an example snortsam.conf with viewable password
+
+# cat /etc/snortsam.conf
+accept 10.10.0.26
+defaultkey secret
+watchguard /bin/fbidsmate 10.1.0.1 mySecretPass
+logfile /var/log/snortsam.log
+loglevel 3
+
+Here the same example snortsam.conf with password encrypted in file
+
+# cat /etc/snortsam.conf
+accept 10.10.0.26
+defaultkey secret
+watchguard /bin/fbidsmate 10.1.0.1 file /etc/fbidsmate.passphrase
+logfile /var/log/snortsam.log
+loglevel 3
+
+Thomas Maier
+Thomas.Maier@arcos.de
+
+-------------------------------------------------------------------------------
+$Id: README.wgrd,v 2.1 2003/03/09 23:58:35 fknobbe Exp $
+

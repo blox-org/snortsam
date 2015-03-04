@@ -1,0 +1,182 @@
+README.ciscoacl - Ali Basel <alib@sabanciuniv.edu>
+-------------------------------------------------------------------------------
+
+THE CISCOACL PLUGIN DOES NOT DOWNLOAD THE CONFIG FILE FROM THE ROUTERS PER
+DEFAULT!
+
+The ciscoacl plugin lets you deny the attackers using ACL on the Cisco routers.
+
+In order to use the ciscoacl plugin, first of all, you have to prepare an ACL file which has a special format.
+If you already use an ACL, you must add your ACL statements into that ACL file.
+Here is the format of that "acl_file":
+
+conf t
+interface interfacename  		<--- put your interface name here
+no ip access-group test_acl out 	<--- you can use "out" or "in" here. ("test_acl" is the name of your ACL)
+exit
+no ip access-list extended test_acl  	<--- the name of the acl (named ACLs)
+ip access-list extended test_acl
+snortsam-ciscoacl-begin  		<--- my plugin will insert the blocking statements here
+snortsam-ciscoacl-end
+... 					<--- if you already have an ACL, put it here
+permit ip any any 			<--- if you don't already have an ACL, use this line instead
+exit
+interface interfacename
+ip access-group test_acl out
+end
+
+
+All the ciscoacl plugin does is to insert (and remove when the blocking time expires) "deny ip host attacker-ip any" statements into the "acl_file" between "snortsam-ciscoacl-begin" and "snortsam-ciscoacl-end" and upload the "acl_file" into the router(s).
+
+In order to use the ciscoacl plugin, you have to supply a simple snortsam.conf config file which must have a "ciscoacl" config-line like the one below: 
+
+/etc/snortsam.conf
+# ciscoacl plugin is not compatible with the threaded version due to the nature of ACLs.
+# DISABLE threads
+nothreads 
+#
+accept IP_of_the_host_running_snort
+defaultkey secret
+ciscoacl IP_of_the_router_which_will_deny_with_ACL username/password enablepassword /full_path/acl_file
+logfile /var/log/snortsam.log
+loglevel 3
+
+
+The ciscoacl plugin offers three ways to upload to "acl_file" into the router:
+1. The default method: telnet
+	When the default telnet method is used, the pluging makes a telnet connection, does the authentication, and issues thecommands on the "acl_file". 
+
+2. tftp
+	When the present ACL have a lot of lines, it takes long time to upload the "acl_file" using the first method above. I that case, tftp: should be used.
+	When this method is used, the ciscoacl plugin makes a telnet connection into the router, does the authentication, and issues the commands on an other file "tftp_file" which has the command "copy tftp: running-config", and the plugin provides the IP address of the tftp server and "acl_file" for the file to upload.
+	It takes only a couple of seconds to upload long acl.
+
+3. expect
+	All the above methods use telnet when making the connection to routers. Since the telnet protocol isn't encrypted it's not a good idea anymore to use telnet, moreover disableing telnet connection is advised.
+	You may use expect interpreter (http://expect.nist.gov/) to automatize definitive tasks.
+	By using a simple expect script you may make a secure ssh connection into the router, and issue "copy tftp: running-config" command to uplad the "acl_file".
+	A sample expect script is provided at end of that document.
+
+
+
+To use the above methods, you have to supply the required definition in your ciscoacl config file.
+Here are the config format for these methods:
+1. telnet
+	This is the default method:
+	ciscoacl IP_of_the_router_which_will_deny_with_ACL username/password enablepassword /full_path/acl_file
+	When you don't use tftp you must give the "acl_file" name with /full_path !
+
+2. tftp
+	ciscoacl IP_of_the_router_which_will_deny_with_ACL username/password enablepassword acl_file|/full_path/tftp_file
+	You must append the "tftp_file" at the end with a "|" character.
+
+	THE ACL FILE MUST BE IN the "/tftpboot" folder, and READABLE.
+	snortsam must be runned inside the /tftpboot/ folder: "cd /tftpboot; snortsam"  
+
+
+3. expect
+	You have to prepare an expect file which makes an ssh connection into the router, and uploads the "acl_file" with tftp.
+	ciscoacl IP_of_the_router_which_will_deny_with_ACL username/password enablepassword acl_file|expect:/full_path/expect_file
+
+	THE ACL FILE MUST BE IN the "/tftpboot" folder, and READABLE.
+        snortsam must be runned inside the /tftpboot/ folder: "cd /tftpboot; snortsam"
+
+
+
+Steps For Using tftp
+--------------------
+If you have long ACLs you should use tftp: to upload your acl_file into the router.
+In order to use this method, you have to follow the steps below:
+1. Prepare a file (I call it "tftp_file"):
+
+copy tftp: running-config
+IP_of_the_tftp_server
+
+Here tftp: means that you will use tftp: when uploading the ACL file "acl_file".
+
+2. Install and run a tftp server on the snortsam box. 
+
+3. Add the tftp_file name (separate with "|", do NOT use any spaces) to the
+ciscoacl line in the /etc/snortsam.conf file: 
+
+ciscoacl IP_of_the_router_which_will_deny_with_ACL username/password enablepassword acl_file|tftp_file
+
+**********************************************************************************
+* THE ACL FILE MUST BE IN the "/tftpboot" folder, and READABLE.                  *
+* snortsam must be runned inside the /tftpboot/ folder: "cd /tftpboot; snortsam" *
+**********************************************************************************
+
+That's all, from now on, your router will upload your acl_file with tftp, and this will be a lot faster.
+
+
+Steps For Using Expect:
+-----------------------
+Using expect is the most versatile method, because you may prepare an script according to your choice and needs.
+All the ciscoal plugin does after modifying the "acl_file" is to call your expect script, then the rest is depends to your expect script.
+Before using that method, expect package (http://expect.nist.gov) must be installed; most of the linux distributions have that package.
+Prepare an expect script and test it by hand before using with snortsam.
+
+Prepare the ciscoacl config line in the snortsam.config file like the one below:
+ciscoacl IP_of_the_router_which_will_deny_with_ACL username/password enablepassword acl_file|expect:/full_path/expect_file
+
+THE ACL FILE MUST BE IN the "/tftpboot" folder, and READABLE.
+snortsam must be runned inside the /tftpboot/ folder: "cd /tftpboot; snortsam" 
+
+
+
+Troubleshooting:
+-----------------
+It is very useful to have a look at the snortsam.log file, to see what happens:
+
+# tail -f /var/log/snortsam.log
+
+If you want to use more than one router for blocking the attackers, you have
+to supply another config line and acl-file for each router:
+
+# cat /etc/snortsam.conf
+accept IP_of_the_host_running_snort
+defaultkey secret
+ciscoacl IP_of_the_router_which_will_deny_with_ACL username/password enablepassword /full_path/acl_file
+ciscoacl IP_of_the_another_router_which_will_deny_with_ACL username/password enablepassword /full_path/acl_file2
+logfile /var/log/snortsam.log
+loglevel 3
+
+THE CISCOACL PLUGIN DOES NOT DOWNLOAD THE ACL FROM THE ROUTER!
+
+
+Example Expect Script:
+----------------------
+"_upload" MUST BE ADDED TO THE "acl_file" name like below:
+username, PASSWORD and ENABLE_PASSWORD must be changed according to your settings.
+
+#!/usr/bin/expect -f
+set timeout -1
+eval spawn "ssh username@IP_of_the_router\r"
+expect  "*assword: "
+send -- "PASSWORD\r"
+expect  "*>"
+send -- "en\r"
+expect  "*assword: "
+send -- "ENABLE_PASSWORD\r"
+expect  "*#"
+send -- "copy tftp: running-config\r"
+expect  "*[]? "
+send -- "IP_of_the_tftp_server\r"
+expect  "*[]? "
+send -- "ACL_FILE_upload\r"
+expect  "*]? "
+send -- "running-config\r"
+expect  "*#"
+send -- "exit\r"
+expect eof
+
+
+
+Ali BASEL
+alib@sabanciuniv.edu
+
+
+
+-------------------------------------------------------------------------------
+$Id: README.ciscoacl,v 2.4 2005/07/10 21:27:05 fknobbe Exp $
+

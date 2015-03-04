@@ -1,0 +1,237 @@
+README.pf 3.0 - Hector A. Paterno <apaterno@dsnsecurity.com>
+-------------------------------------------------------------------------------
+For additional notes from Olaf Schreck, see farther below.
+-------------------------------------------------------------------------------
+
+1. Description.
+
+This plugin is for IP blocking on different versions of OpenBSD Operating
+System and FreeBSD 5.1 with pf4freebsd port installed and working. 
+Since this lastest release it supports OpenBSD 3.3, 3.4 and FreeBSD 5.1 using
+tables, anchors, and rulesets, who recently made available in pf.
+It now uses a new kind of configuration options ( option=value option2=value2
+etc. ) Please see 3. Options to obtain a full list of available options.
+Note : This is not a pf tutorial, please read the pf documentation to understand
+the concepts of anchors, tables, rulesets etc. .
+
+2. Compatibility.
+
+This lastest release supports, compiles, works, and has been tested on the
+following OS/Versions :
+
+OpenBSD 3.0
+OpenBSD 3.1
+OpenBSD 3.2
+OpenBSD 3.3
+OpenBSD 3.4
+OpenBSD current ( 12/02/2003 ).
+FreeBSD 5.1-RELEASE ( with http://pf4freebsd.love2party.net port ).
+FreeBSD 5.1-CURRENT ( with http://pf4freebsd.love2party.net port ).
+Now also:
+OpenBSD 3.5
+OpenBSD 3.6
+
+3. Options.
+
+This is the list of options that you can set in the configuration file :
+
+auto=0/1
+log=0/1
+anchor=[string]
+eth=[string]
+(table=[string] - ignored. Listed for historical purposes only)
+
+auto:    
+The auto option is used to tell the pf plugin to automatically (auto=1)
+initialize all the required anchor/tables/rulesets/rules in the packed 
+filter (no pf.conf or manual modifications needed in the active ruleset). 
+
+log:
+The rules created by the pf plugin will get the log option if this option is
+set to 1 (log=1), so every time a blocked ip try to make a connection, 
+the correspont pf rule will generate a log entry on the pflog interface.
+
+anchor:
+Sets the anchor name used to hold the rulesets/tables/rules.
+
+table: 
+Now ignored. Before Snortsam 2.30, it used to set the name of the table to 
+hold the blocked IPs.
+
+eth:     
+Sets the interface name used when the anchor is created or when
+the rules are added.
+
+Example : 
+ pf auto=1 log=1 anchor=fwsamd table=blockedips eth=le1
+
+All configuration options are parsed, no matter the OS/Version used, but not
+all the parsed options are used, that depends on the OS/Version used, see 
+4. Notes to get a list of used/relevant options in your OS/Version.
+
+
+4. Notes.
+
+-- OpenBSD 3.0, 3.1 and 3.2 -- :
+
+Under this OS/Versions only the "log", and "eth" options will be used by the pf
+plugin, so on every block call, a new entire rule will be created with the 
+corresponding "log" and "eth" options at the head of the active ruleset. 
+
+-- OpenBSD 3.3 -- :
+
+Under this OS/Version the "auto", "log", "eth", "table" options will be used
+in the following mode :
+
+Under OpenBSD 3.3 you will need to create 3 tables in the main ruleset
+(unless you use the auto=1 option), one for the IN, one for the OUT, 
+and one for the INOUT. 
+For example if you wish to call your table "blockedips", then you will 
+need to create :
+
+blockedipsIN
+blockedipsOUT
+blockedipsINOUT
+
+tables and specify auto=0 ( the tables are already created by you ), and
+table=blockedips ( without the IN, OUT, INOUT ) in the pf section of your
+snortsam config file.
+
+You must also create the rules who point to this tables ( unless you use
+the auto=1 option ) :
+
+block in from <blockedipsIN> to any
+block out from any to <blockedipsOUT>
+block in from <blockedipsINOUT> to any
+block out from any to <blockedipsINOUT>
+
+The "eth" and "log" options are used in auto=1 mode, when the pf plugin is
+in charge of creating the rules. If you don't use the auto=1 mode, then this
+parameters can specified in the rules that you must create.
+
+So every block call will add an ip entry in the corresponding table, and
+automatically gets blocked by the corresponding rule who blocks that table.
+Under OpenBSD 3.3 all of this takes place in the main ruleset, no anchors or
+rulesets are used.
+
+-- OpenBSD 3.4, OpenBSD Current, FreeBSD 5.1-RELEASE, FreeBSD 5.1-CURRENT -- :
+
+Under this OS/Versions all the options are used by the pf plugin, It creates (
+unless you use auto=0 ) one call to the anchor specified by the "anchor"
+option in the main ruleset with the optional "eth" name, and 3 rulesets inside 
+this "anchor" ( "IN", "OUT" and "INOUT" ), each ruleset has Its own table 
+( specified by the "table" option ) and Its set of rules with the optional
+"log" option.
+
+If you dont wish to use the auto=1 option, you must create this sets of
+entries in your pf.conf file or by hand ( using pfctl command ) and set the
+choosen parameters in the pf section of the snortsam configuration file.
+
+If you got confused while try to create the anchor and rules to not to use the
+auto=1 option, try to use the "auto=1" option at first, and see the
+rules/rulesets/anchor/tables added automatically by the pf plugin as an example.
+
+
+
+Hector A. Paterno
+apaterno@dsnsecurity.com
+
+-------------------------------------------------------------------------------
+Note by Frank Knobbe:
+FreeBSD support is currently disabled with #ifdef's. If you have loaded the pf
+patch under FreeBSD 5.x, you need to remove the "#ifdef OpenBSD" in ssp_pf.c,
+ssp_pf.h and plugins.h. Don't forget to remove the corresponding "#endif".
+We need to clean this up later so that it doesn't throw errors on FreeBSD
+systems without the pf port and Solaris/AIX/whateverix. 
+(What we really need is a make file... *sigh*)
+-------------------------------------------------------------------------------
+Updated 01-16-05, Note by Olaf Schreck <chakl@syscall.de>
+
+This is based on Hector's code, read above sections first!
+
+Use the following line in snortsam.conf:
+
+        pf anchor=fwsam auto=1 [ log=... eth=... table=ignored ]
+
+Choose any anchor name you like, I recommend "fwsam".  Use auto=1 
+unless you really want to do things manually, see below.  Use log 
+and eth as you did before, no changes to this stuff.  You may still 
+specify a table name, but it will be _ignored_, see "Changes" below. 
+
+
+Testing
+-------
+
+Create snort signatures like this, probably in local.rules:
+
+        alert tcp any any -> $your_ip 11110 (msg:"TEST log 11110/tcp"; \
+                sid:1111110;)
+        alert tcp any any -> $your_ip 11111 (msg:"TEST block 11111/tcp"; \
+                sid:1111111; fwsam:src[in],5min;)
+
+- start snort and snortsam, verify the processes are running, check 
+  their logfiles for any errors;
+- verify that the test sigs fire and that alerting works before 
+  proceeding.  I like to have snort log via syslog, do a "telnet 
+  $your_ip 11110" from any remote machine first, and then *expect* 
+  to see the "TEST log 11110/tcp" in syslog.  If that doesn't work for 
+  you, *fix your configuration first*, it is pointless to continue 
+  without working alerting;
+- check that anchor, tables and rules exist after snortsam started, 
+  read the pfctl manpage;
+        # pfctl -vsA
+        # pftcl -a fwsam -sT
+        # pfctl -a fwsam -t blockin -Ts
+        # pfctl -a fwsam -t blockin -sr
+- test snortsam blocking with "telnet $your_ip 11111" from any remote 
+  machine.  You should see a "TEST block 11111/tcp" alert in syslog, a 
+  message "Blocking $src_ip" in snortsam.log, and $src_ip listed in the 
+  output from "pfctl -a fwsam -t blockin -Ts".  All traffic from $src_ip 
+  to $your_ip should be blocked now.  After 5 minutes you should see 
+  "Unblocking $src_ip" in snortsam.log, $src_ip removed from the blockin 
+  table, and traffic from $src_ip to $your_ip should be allowed again. 
+
+At least, that would be *expected* behavior.  Prepare for debugging with 
+pfctl if it doesn't work out right.
+
+
+Changes
+-------
+
+The last version of ssp_pf was for OpenBSD 3.4.  In 3.6 a change to the 
+pf ioctl API was introduced for "nested anchors".  Semantically, what 
+used to be a "named ruleset" within an anchor, is now a sub-anchor to 
+that anchor, which allows for tree-like ruleset structures.  The hard 
+part of this patch (for me) was figuring out where to put the anchor 
+references.
+
+Changed some strcpy()s to strncpy(), deal with PF_MAX_*_SIZE correctly.
+
+Hardcoded the table names to "blockin", "blockout" and "blockinout". 
+Laziness, what's the point of having configurable table names anyway?
+
+My first approach was to convert the named "IN", "OUT" and "INOUT" 
+rulesets to sub-anchors.  Didn't work for other reasons, and it smelled 
+bloated.  After all, we have 4 rules operating on 3 tables, a simple 
+single anchor should be able to do that job just fine.. :)
+
+
+Using auto=0
+------------
+
+The pf plugin is written for auto=1, if you disable it you'll have to 
+setup these things manually:
+
+        - the pf anchor "fwsam" inside the main ruleset
+        - 3 tables ("blockin", "blockout", "blockinout") inside the 
+          "fwsam" anchor
+        - 4 rules like below inside the "fwsam" anchor
+            block in  log quick from <blockin> to any
+            block out log quick from any to <blockout>
+            block in  log quick from <blockinout> to any
+            block out log quick from any to <blockinout>
+
+
+-------------------------------------------------------------------------------
+$Id: README.pf,v 1.2 2005/01/16 22:55:27 fknobbe Exp $
+

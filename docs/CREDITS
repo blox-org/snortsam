@@ -1,0 +1,142 @@
+
+SnortSam has to thank a lot of people. They are listed here in no particular
+order (except maybe alphabetical):
+
+
+Aaron Carr:
+    For making a development machine and PIX available for development of the
+    PIX plugin.
+
+Ali Basel:
+    For writing the Cisco ACL plugin, the documenation for it and the SNMP-
+    interface-down plugin with documentation.
+
+Bjorn Jansson:
+    For his great assistance in hunting down cross-endian related bug.
+
+Christopher Lyon:
+    For providing a lot of info on the Netscreen commands and ideas on how to
+    block on Netscreen. He also made a machine available to test and debug the
+    plugin.
+
+Craig Gill:
+    For hunting down several bugs, and great suggestions or 'feature requests'.
+
+Dave Robinson:
+    For his patience during trouble shooting.
+
+Erik Sneep:
+    For writing the IPFilter (ipf) plugin.
+
+Fabrizio Tivano:
+    For writing the IPtables (iptables) plugin.
+
+Hector Paterno:
+    For writing the PacketFilter (pf) and IPchains plugins.
+
+Jason Amsden:
+    For helping cleaning the code so that it compiles smooth under various
+    platforms.
+
+Jason Hershcopf:
+    For trouble shooting assistance and bug reports.
+
+Jeff Boles:
+    For providing suggestions and info on how to block on Cisco routers.
+    (This was before Ali developed the plugin independently).
+
+John Hall:
+    For lots of support and trouble shooting assistance with various Firewall-1
+    versions.
+
+Justin Mitzimberg:
+    For additional information for the Cisco PIX plugin.
+
+Marco Supino:
+    For trouble shooting assistance with endian problems, and compilation
+    of the first Solaris versions.
+
+Michael Boman:
+    For feature requests, but mainly for being a great sport :)
+
+Mike Koponick
+    For bugging me to change the PIX plugin so that it can log into RADIUS
+    configured PIXes, and for testing the code.
+
+Paul Knibbs:
+    For great assistance in debugging OPSEC related code. Thanks mate!
+
+Peter Barganski:
+    For trouble shooting SAM related problems.    
+
+Ralf Hildebrandt:
+    For debugging assistance, feature requests, and code clean-ups.
+
+Darryl Sokoloski:
+    For the daemon mode and fix for socket-reuse setting and for patch adding
+    the Sig_ID. Also, for the idea of the USR2 signal handling, which reloads
+    the state file (in case external programs modified it).
+
+Thomas Maier:
+    For trouble shooting and testing under Solaris. He also made a machine 
+    available for compilation of Solaris versions. Vielen Dank!
+    Furthermore, he is the author of the Watchguard plugin.
+
+Tony Nelson:
+    For trouble shooting and getting code to compile under various platforms.
+
+Vincent Corriveu:
+    For trouble shooting and feature requests.
+
+Bruno Scatolin:
+    For the EBtables plugin.
+
+Joe Mazzie:
+    For the idea and documentation of the 8signs plugin.
+
+Nima Sharifi Mehr:
+    For the idea and writing the ISA Server plugin. Also for the Windows
+    Service handling code.
+
+Peter:
+    For the idea of the CHX-I plugin.
+
+Olaf Schreck:
+    For picking up where Hector left off, providing a patch to support newer
+    versions of OpenBSD, and the Makefile.
+
+Brent Erickson and Sergio Salazar:
+    For the idea, sample commands and testing of the Cisco null-route method.
+
+Robert Rolfe:
+    For the renewed idea of the ipfw2 plugin based on tables, development of
+    plugin sources and testing.
+
+Jeff Kell:
+    For the idea of the USR1 signal handling which reinstates previous blocks.
+
+Mark P Clift:
+    For the ISA 2004 Server plugin.
+
+Luis Marichal:
+    For adding direction and connection based blocking to IP tables.
+
+Paul Tatarsky:
+    For his assistance in fixing integer length issues in Twofish routines on
+    64 bit systems.
+
+Wouter de Jong:
+    For submission of the Cisco Null-Route2 plugin which supports tagged
+    routes.
+
+Olli Hauer:
+    For submission of a reworked PF2 plugin and PF plugin cleanups.
+
+and others for providing feedback.
+
+
+And finally, Marty Roesch and everyone else on the Snort Team for making such
+a great Intrusion Detection System!
+
+-------------------------------------------------------------------------------
+$Id: CREDITS,v 1.18 2009/11/08 23:06:06 fknobbe Exp $

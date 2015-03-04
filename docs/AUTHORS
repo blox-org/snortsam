@@ -1,0 +1,88 @@
+
+Following is a list of authors with their respective programs, plugins, and
+documentation. Please see also CREDITS, which contains additional supporters
+without their help SnortSam wouldn't be what it is:
+
+
+Frank Knobbe <frank@knobbe.us>
+ - SnortSam (the main program)
+ - fwsam plugin
+ - fwexec plugin
+ - OPSEC plugin (based on a sample SAM application found in the OPSEC SDK from
+                 Checkpoint Software Technologies Ltd.)
+ - PIX plugin
+ - Netscreen plugin
+ - Email plugin
+ - 8signs plugin
+ - CHX-I plugin
+ - Cisco Null-Route plugin
+ - Readme mess and any other file not listed here.
+
+
+Ali Basel <alib@sabanciuniv.edu>
+ - Cisco ACL plugin
+ - Cisco ACL documenation (README.ciscoacl)
+
+
+Eric Sneep <erik@webflex.nl>
+ - IPfilter (ipf) plugin
+
+
+Hector Paterno <apaterno@dsnsecurity.com>
+ - PacketFilter (pf) plugin
+ - PacketFilter plugin documentation
+ - IPchains plugin
+
+
+Christopher Lyon <cslyon@netsvcs.com>
+ - Netscreen documentation (README.netscreen)
+
+
+Thomas Maier <thomas.maier@arcos.de>
+ - Watchguard plugin
+ - Watchguard plugin documentation (README.wgrd)
+
+
+Fabrizio Tivano <fabrizio@sad.it>
+ - IPtables plugin
+ - IPtables documentation
+
+
+Bruno Scatolin <ipsystems@@uol.com.br>
+ - EBtables plugin
+
+
+Joe Mazzie <jazzie_m@hotmail.com>
+ - 8signs documentation (README_8signs.rtf)
+
+
+Nima Sharifi Mehr <nimahacker@yahoo.com>
+ - ISA Server plugin
+ - Windows Service handling code
+ 
+ 
+Mark P Clift <mark.clift@usitek.com>
+ - ISA Server 2004 plugin
+
+
+Robert Rolfe <rob@wehostwebpages.com>
+ - ipfw2 plugin
+
+
+Joey Moe <family_geek@yahoo.com>
+ - Slackware installation instructions (README.slackware)
+
+
+Luis Marichal <luismarichal@gmail.com>
+ - Extensive IPTables modification
+
+
+Wouter de Jong <maddog2k@maddog2k.net>
+ - Cisco Null-Route2 plugin (supports tagged routes)
+
+
+Olli Hauer <ohauer@gmx.de>
+ - PF2 rewrite and PF clean-up
+ 
+-------------------------------------------------------------------------------
+$Id: AUTHORS,v 1.18 2009/11/08 23:06:06 fknobbe Exp $

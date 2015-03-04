@@ -1,0 +1,42 @@
+README.iptables - Fabrizio Tivano <fabrizio@sad.it>
+-------------------------------------------------------------------------------
+
+The Iptables plugin works on all linux box, iptables installed.
+
+
+Default configuration is for any linux iptables-firewall with default DROP rule,
+and working with 2 interfaces:
+
+eth0 = internal net
+eth1 = external net
+
+you can also change the target ethernet card by adding the correct ethX name on 
+the snortsam.conf file.
+
+
+The standard block command is:
+iptables -I FORWARD -i eth1  -s {ip_addr_to_be_blocked} -j REJECT 
+
+The standard unblock command is:
+iptables -D FORWARD -i eth1  -s {ip_addr_to_be_unblocked} -j REJECT 
+
+
+To start support for Iptables you have to add one line to the snortsam.conf
+like:
+
+iptables eth1 log
+
+
+
+You can also make  your iptables block/unblock command by editing the module
+ssp_iptables.c (PAY ATTENTION AT THE CORRECT IPTABLES SYNTAX!!!) and then 
+recompile it.
+
+
+
+Fabrizio Tivano
+fabrizio@sad.it
+
+-------------------------------------------------------------------------------
+$Id: README.iptables,v 1.1 2003/04/13 19:47:33 fknobbe Exp $
+

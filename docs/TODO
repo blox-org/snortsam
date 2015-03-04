@@ -1,0 +1,19 @@
+
+Following is on the possible TODO list:
+
+- Change gethostbyname handling so that snortsam, like samtool, iterates
+  through all returned IPs. (done for DONTBLOCK. Think about ACCEPT, maybe 
+  FORWARD?
+
+- Signal HUP handling: Restart Snortsam/Reload config
+- syslog logging and EventLog logging
+- Generic script plugin
+- Add reverse domain name lookup for dontblock/override lists 
+  (i.e. dontblockdomain *.mydom.com)
+- rewrite documentation
+- rewrite email plugin so it reports the results of each output plugin 
+  (major stuff...)
+
+-------------------------------------------------------------------------------
+$Id: TODO,v 2.16 2009/09/06 15:34:39 fknobbe Exp $
+

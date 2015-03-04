@@ -1,0 +1,148 @@
+README.netscreen - Christopher Lyon <cslyon@netsvcs.com>
+-------------------------------------------------------------------------------
+
+Comments, questions, additions, input and constructive criticism are always
+welcome. 
+
+Please read the entire file and perform a backup of your configuration before
+making any changes on your Netscreen. If you don't know how to perform a backup
+of your configuration, please obtain a users manual. Just a hint, a 'get config'
+command gets the entire configuration from your unit so if you can telnet into
+the Netscreen that is the command you need to run. Take the output on your
+screen and save it to a text file. We don't assume any reasonability if you
+blow up your Netscreen using these commands. We are just trying to help you get
+started and we can't take reasonability for anything that you did, haven't done,
+or are going to do. So, don't blame us, me or anybody on the SnortSam team.
+
+ 
+SnortSam Configuration
+
+Usage for the Netscreen option in the config is:
+
+netscreen <firewall-ip> <login-id> <login-pw> <optional-group-name>
+
+
+Netscreen Configuration
+
+In order to get this working there are a few things that must be setup first on
+the Netscreen. The first thing is to setup a group on the Netscreen. 
+The default name for the group is called 'SnortSam'. That is unless you change
+it in the conf file. The way SnortSam interacts with the Netscreen is that is
+adds and removes IP addresses to and from this group on the Netscreen. 
+
+Note: We picked groups instead of adding and deleting rules to the policy
+because of the way Netscreen does the rules and how they are added, and then
+moved when doing them from the CLI. If you are using routed mode you might
+need more than one rule to do blocking, depending upon if you have any inbound
+services. A group instead of adding rules would be a better fit. Keep in mind
+that the Netscreen, like other firewalls, reads the rules from top down. So
+you want to keep these rules that we are entering closest to the top, so that
+they can be most effective.
+
+
+Routed and Transparent Mode Considerations
+
+There are two modes that your Netscreen can operate in, routed mode and
+transparent mode. Routed mode is when you have separate layer 3 networks on
+each interface. Your trusted interface has two modes that it can use, but only
+if you are in routed mode. Those two modes are NAT and route. If you are using
+private addresses on your trusted interface then it should be set to NAT mode.
+Please note that if you are using NAT mode there are special considerations
+to make. Since there is only one group support for SnortSam right now, the best
+that we can do is block traffic going to your DMZ if you have one. Keep in mind
+that there is a default deny rule on your incoming policy, so blocking there
+using SnortSam really doesn't do anything. If you have any one-to-one network
+address translation going between your trusted and untrusted network, you will
+need to pick which is more important to block (for now). If you want to block
+on your untrusted interface like the examples below you will need to create a
+policy with an explicit deny for each inbound service. SnortSam will add the IP
+addresses to the group. The Netscreen 5's or 5xp make great screening walls for
+relatively low speed connections. I am talking about less than 3 meg links.
+They are cheap and you can still get Netscreen 5's. 
+
+If you are using transparent mode then you have dropped the Netscreen in
+between your internet router and your hosts or firewall. That would mean that
+you have a single IP address for management of the box. Unless you mess up the
+default configuration, nobody can get to the Netscreen from the outside in
+transparent mode directly. This, in my opinion, is a great way to do a
+screening wall. The best configuration is to put your IDS sensor between your
+screening wall and your firewall where SnortSam is doing the blocking,
+because you will be blocking everything before it hits your firewall. The 
+configurations below assumes that you are using transparent mode but if you
+want to use routed mode there will be a few things that you will need to change. 
+
+ 
+Netscreen CLI commands (Basic)
+
+The commands below assume that you are using transparent mode. If you are not
+using transparent mode, you have to keep in mind that the commands will need to
+modified to work. Once you have established a telnet session into the Netscreen,
+you should see a -> prompt. The first command is to create a group. If you can't
+telnet to the Netscreen, you must make sure that you can, or else SnortSam will
+not be able to block. Go to the web GUI, and under the interface tab go to
+'trusted'. Make sure that telnet is checked. You might need to reboot the
+Netscreen in order for that to take effect. 
+
+Group Command:
+
+Set group address untrust "SnortSam" comment "Put your comment here"
+
+Now, the second command depends upon how many incoming rules you have. If you
+do a 'get config' at the Netscreen CLI prompt, and look at the set policy
+commands, you will see the rules that are currently being used. Note that the
+rules are not in order by their id, but in the order of how they are enforced.
+Remember, they are read from the top down and the id number is only used to
+reposition the rules. So if your policy rules read like the ones below, you will
+need to insert a rule before id 1. We don't care about the outgoing policy for
+now, just the incoming policy.
+ 
+Partial 'get config':
+set policy id 0 outgoing "Inside Any" "Outside Any" "ANY" Permit log 
+set policy id 1 incoming "Outside Any" "Inside Any" "ANY" Permit
+ 
+
+Policy Rule Command:
+set policy before 1 incoming "SnortSam" "Inside Any" "ANY" Deny
+
+By default, the group name 'SnortSam' is used. But if you want to use
+something else you can do so via the SnortSam configuration file. Note we use
+the 'before 1 incoming' in the rule above. But if your first incoming rule is
+id 5, then the command would be 'before 5 incoming'. You can add the following
+after the deny if you want, but keep in mind all these take up more memory and
+processor resources.
+
+count 		enable counting
+log		enable logging
+schedule	set scheduler
+traffic		traffic parameters
+
+After you have executed the command, your policy rules should look like this:
+
+set policy id 0 outgoing "Inside Any" "Outside Any" "ANY" Permit log 
+set policy id 2 incoming "SnortSam" "Inside Any" "ANY" Deny 
+set policy id 1 incoming "Outside Any" "Inside Any" "ANY" Permit
+
+That is it for the Netscreen configuration. 
+
+Known Issues:
+
+Some of the Netscreen's, depending upon the code version that you are using,
+may only let one person from the same IP address telnet into the box. So, if
+you are testing this out and want to see the modifications in real time, either
+use the web interface or a different box to view the modifications. 
+
+This is more of an FYI than an issue but with the new code 4.x there might be
+some issues with this configuration. I am just saying this because I don't
+know, I haven't tested it. I should have a chance to test it in a week or two. 
+The structure in 4.x is a little different so beware.
+
+
+Regards,
+Christopher Lyon
+cslyon@netsvcs.com
+
+
+
+-------------------------------------------------------------------------------
+$Id: README.netscreen,v 1.3 2003/01/16 05:54:23 fknobbe Exp $
+

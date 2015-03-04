@@ -1,0 +1,417 @@
+FAQ - Frank Knobbe <frank@knobbe.us>
+-------------------------------------------------------------------------------
+
+This is the old documentation which is written in a some sort of FAQ style:
+
+
+
+Q: What is SnortSam?
+
+A: SnortSam is an intelligent agent that allows the popular
+open-source Intrusion Detection System called Snort to block
+intruding connections by reconfiguration of Checkpoint
+Firewall-1/VPN-1 firewalls. It can also block on Cisco PIX
+firewalls and Cisco routers.
+
+
+Q: How does that work?
+
+A: Snort has been extended with an 'output plugin' that notifies the
+SnortSam agent of blocking requests on a rule basis. Each Snort rule
+can be extended with a keyword that sends the blocking request.
+
+
+Q: So Snort itself does the block?
+
+A: Not quite. There is another plugin available that does directly
+connect to Firewall-1. However, it lacks several important features,
+and blocks always permanently, which is not a good thing to do.
+SnortSam is build on a client-agent based concept for several
+reasons: One is to reduce the workload of the IDS sensor (Snort).
+The second reason is that using this concept, one can build a
+comprehensive network of sensors and firewalls. Each Snort sensor
+can request a block at an unlimited number of firewalls, and each
+firewall can accept an unlimited number of IDS sensors. SnortSam is
+the intelligent agent which runs on the firewall itself.
+
+
+Q: So how does this work?
+
+A: A Snort sensor is configured with the address of the agent, and
+rules that should request a blocking action are extended with certain
+parameters. When a rule triggers a block, the Snort sensor sends an
+encrypted TCP packet to one or more SnortSam agents that are running
+on the firewalls. The agent performs certain checks, and if allowed,
+will request the firewall to block the reported IP address.
+
+
+Q: What makes the agent so smart then?
+
+A: The SnortSam agent on the firewall receives a blocking request
+packet. First it verifies that the request came form an authorized
+source. It then decrypts the request. If successful, meaning if the
+passwords or keys of the Snort sensor and the SnortSam agent match,
+the agent accepts it as a valid request. SnortSam will then figure
+out the IP address of the host violating the snort rule. SnortSam
+then checks if this IP address is in a white-list. A white-list is
+a list of IP addresses that will never be blocked (for example, you
+shouldn't block the Internet root DNS servers). Then it checks if
+the duration of the block that the Snort sensor requested should be
+overridden with a default duration. Finally it request a block on 
+the firewall host it resides on. This block can be performed either
+by sending a packet to the OPSEC port for SAM (Suspicious Activity
+Monitor, port 18183), or by launching the FW executable.
+
+
+Q: That's it?
+
+A: Almost. Once a block has been performed. SnortSam notes the time
+and IP address of the block. In the configuration file of SnortSam,
+a 'rollback threshold' can be configured. This is done by specifying
+an amount of blocking requests within a certain time period. Should 
+this threshold be exceeded (which usually indicates an unusual or
+abnormal activity, such as a DoS attempt against SnortSam), SnortSam
+will unblock a certain number of the last blocks performed, and then
+goes into a sleep-mode until the rate of blocking requests falls
+back below the specified level. Only then will SnortSam start to 
+honor blocking requests again. This is done on a per Snort sensor 
+basis.
+
+
+Q: Anything else?
+
+A: Not yet, but other features are planned for future releases. One
+of these is the ability of SnortSam to forward blocking requests to
+other SnortSam agents. This allows the creation of more comprehensive 
+networks of IDS's and firewalls participating in the automated 
+blocking process.
+
+I just added a plugin structure to SnortSam that will allow it
+to perform blocks on other firewalls and routers in addition to 
+Checkpoint firewalls. Currently, the OPSEC plug-in is available,
+which adds true OPSEC compatibility through Checkpoint's OPSEC SDK.
+
+Also, we have a PIX plugin. Run SnortSam on a box close to the
+PIX firewall and configure it for access to the PIX. It will then
+block IP addresses on the PIX and expire them by keeping track
+of the blocks itself (since the PIX can not time out blocks).
+
+Furthermore, we have a Cisco router ACL plugin that downloads the
+current router config, blocks the offending IP by adding it to the
+denied ACL, and uploading the configuration back to the router.
+
+
+Q: You mentioned encryption. What is used and why?
+
+A: The communication between Snort and the SnortSam agent is
+encrypted with the TwoFish algorithm (256 bit). The encryption keys
+specified are only initial keys. A key interval can be specified
+where new keys are generated automatically. This is one part of
+making this whole setup secure. In addition, the SnortSam agent will
+only accept connections from specified hosts/networks. Furthermore,
+the encrypted packet contains a sequence number. Those three facts 
+(list of authorized sensors, encryption of data, sequence number
+checks) should make it almost impossible to spoof the blocking 
+requests.
+
+
+Q: How do I configure Snort?
+
+A: Configuration of Snort occurs in two places. One is the snort.conf
+file, and the other is the rule files.
+
+snort.conf
+----------
+
+In order to cause Snort to send a blocking request to the SnortSam
+agent, that agent has to be listed, including the port it listens on,
+and the encryption key it is using. 
+The statement for that is:
+
+output alert_fwsam: <SnortSam Station>:<port>/<password> 
+
+  <SnortSam Station>:  IP address or host name of the host
+                       where SnortSam is running.
+  <port>:              The port the remote SnortSam agent
+                       listens on.
+  <password>:          The password, or key, used for encryption of
+                       the communication to the remote agent.
+ 
+At the very least, the IP address or host name of the host running 
+SnortSam needs to be specified. If the port is omitted, it defaults 
+to TCP port 898. If the password is omitted, it defaults to a preset 
+password (In which case it needs to be omitted on the SnortSam agent 
+as well).
+
+More than one host can be specified, but has to be done on the same
+line. Just separate them with one or more spaces.
+
+Examples:
+
+output alert_fwsam: firewall/idspassword
+output alert_fwsam: fw1.domain.tld:898/mykey
+output alert_fwsam: 192.168.0.1/borderfw  192.168.1.254/wanfw
+
+
+Rule files
+----------
+
+Once the agent is listed, you need to modify the rules so that they
+invoke the blocking request. This is done by adding following
+statement to the rule:
+
+fwsam:	who[how],time;
+
+Examples:
+
+fwsam:  src[either],15min
+    or  dst[in], 2 days 4 hours
+    or  src, 1 hour
+
+        (default: src[either],5min)
+
+        who: Can be: src, source, dst, dest, destination
+               IP address to be blocked according to snort rule
+               (some rules are reversed, i.e. homenet -> any and you
+               want to block any, so DST would be appropriate)
+
+        how: Optional. Can be: In, out, src, dest, either, both,
+                               this, conn, connection
+               Tells FW-1 to block packets INcoming from host,
+               OUTgoing to host, EITHERway, or only THIS connection
+               (IP/service pair).
+               See 'fw sam' for more information.
+
+       time: Duration of block in seconds. (Accepts 'days', 'months',
+             'weeks', 'years', 'minutes', 'seconds', 'hours'.
+             Alternatively, a value of 0, or the keyword 'PERManent',
+             'INFinite', or 'ALWAYS', will block the host
+             permanently. Be very careful with this!
+               Tells FW-1 how long to block packets from the host.
+
+This statement is very dependent on the rule itself. Here are some 
+real Snort example rules:
+
+alert tcp any any -> $HTTP_SERVERS 80 
+   (msg:"WEB-MISC http directory traversal"; flags: A+; 
+   content: "..\\";reference:arachnids,298; fwsam: 15 minutes;) 
+
+The rule applies to a connection from any to your servers. That means
+the source is the attacker, the destination is you. The above fwsam
+statement will block the source for 15 minutes.
+
+alert tcp $HOME_NET 23 -> any any 
+   (msg:"TELNET not on console"; flags: A+; 
+   content:"not on system console"; nocase; 
+   reference:arachnids,365; fwsam: dest, 1 day;) 
+
+This rule applies to connections from your host to the attacker. The 
+source is your system, the destination is the attacker. That means
+you would want to block the destination. Above fwsam statement will
+block the destination for a whole day.
+
+Both examples will block incoming and outgoing connections to the
+attackers. If you wanted to block only incoming connections, but want
+to allow outgoing connections to the attacker (maybe for an 
+investigative scan), then the fwsam statements would have to be
+modified with [in] to explicitly block only incoming connections.
+
+i.e. fwsam: src[in], 15 minutes
+     fwsam: dest[in], 1 day
+
+For modifying Snort rules, it is best that you first figure out, who
+you want to block (which depends on the rule itself). Then you have to
+decide if you want to completely block the offender, or only block
+incoming (or perhaps only block outgoing connections). Finally,
+decide how long you want to block them.
+
+It is recommended that you start with short time intervals for 
+testing purposes and increase the time once the rule is 'tuned'.
+
+I personally don't recommend to block permanently. See discussion at
+the end of this document.
+
+
+Q: And how do you configure SnortSam?
+
+A: The agent running on the firewall has to be configured as well.
+You can start it from a script, or run it as a daemon or service.
+The agent is run with the name of the config file as the argument.
+If not specified, it tries to open the config file snortsam.cfg
+under Windows, and /etc/snortsam.conf under Unix and other platforms.
+The config file is a text file containing the lines are defined in 
+the file README.conf.
+
+
+PLEASE SEE README.conf FOR A COMPLETE LIST OF CONFIGURATION OPTIONS.
+
+
+Other statements will be added when those features become available.
+'forward' is planned for a future release where one SnortSam agent 
+can forward a blocking request to other SnortSam agents.
+
+Note regarding time values (in Snort rules and the SnortSam config):
+All time values are basically supplied with their modifier (secs,
+min). If no modifier is supplied, the value is in seconds. You can
+add more than one modifier, i.e. 1 day 3 hours 30 mins 10 secs. All
+these values are summed up. You can abbreviate down to the first
+character, so 'seconds', 'secs', 'sec', 's' are all the same. The
+value of 1 month is equal to 30 days.
+
+30                30 seconds
+30 secs           30 seconds
+30 min            1800 seconds
+1 hour 30 min     5400 seconds
+
+
+Q: Do I need to configure something on the firewall itself?
+
+A: Yes. Unless you are using the 'fwexec' statement, you need to do
+following:
+
+On the firewall where SnortSam is running, you need to change the
+file /fw/conf/fwopsec.conf (version 4.0) or 
+/fw1/4.1/conf/fwopsec.conf (version 4.1) or
+/fw1/ng/conf/fwopsec.conf  (Next Generation) as follows:
+
+By default it should contain:
+
+sam_server      auth_port       18183
+lea_server      auth_port       18184
+# authenticated connections for servers
+# server      <server IP>    <service port>      auth_opsec
+server        127.0.0.1         18181            auth_opsec
+server        127.0.0.1         18182            auth_opsec
+sam_allow_remote_requests no
+
+You may already have added other entries. For SnortSam to work
+properly, you need to change line 1 to
+
+sam_server   auth_port   0
+sam_server        port   18183
+
+That will allow clear-text connections to the SAM port which is
+what SnortSam sends. sam_allow_remote_requests should be set to
+YES on all firewall modules that you want to send requests to
+directly (as supposed to proxy mode where requests are sent through 
+the management station). 
+Running SnortSam on the firewall itself can improve blocking
+speed. In my test I have snort configured to block on ICMP echo's
+to the firewall. When a box pings the firewall, only the first ping
+is replied to, the rest already gets filtered.
+
+Further explanation of the threshold mechanism:
+
+Example:
+rollbackhosts 20
+rollbackthreshold 10 / 15 secs
+rollbacksleeptime 30 secs
+
+When 10 or more blocking requests are received within 15 secs,
+SnortSam will undo the last 20 blocks and remain inactive as long as
+the threshold is exceeded. Once the rate of blocking requests drops
+back below 10 blocks within 15 seconds, SnortSam will wait an
+additional 30 seconds before allowing blocking requests again. These
+values can be tuned to avoid DoS attack conditions. Let's say someone
+figures out that you are actively reconfiguring your firewall, and
+starts sending spoofed packets. The amount of blocking requests will
+rise above a 'normal' level. With these rollback values, SnortSam
+will detect the attack, undo the already blocked IP's and then wait
+for the attack to end.
+
+The attack recognition is done per configured sensor. So if you have
+two snort sensors (say one in front of the firewall, and one behind),
+and one (i.e. in front) trips the attack detection, SnortSam will 
+ignore requests from that sensor, but still honor requests from the
+other sensor (i.e. behind the firewall).
+
+If rollbackhosts is not specified, it defaults to 0, which means
+SnortSam does not keep a history of blocking requests. 
+If rollbackthreshold is 0 / whatever (default if not specified),
+it will not engage the detection engine and block whatever it is
+requested to block.
+
+
+Q: Nice, but why would someone want to block intruders?
+
+A: There are several scenarios where the blocking mechanism comes in
+very handy:
+
+Port Scans: Let's say your router to the Internet is at IP address
+x.x.x.1. Your firewall has rules for servers in the DMZ, which have
+IP address x.x.x.68 through x.x.x.80. Port scans usually occur with
+an increasing IP address. A scanner would first scan x.x.x.1, then 
+x.x.x.2 and eventually reach x.x.x.68 which could be your DNS server.
+If you create a Snort rule that gets activated when someone tries to
+scan x.x.x.2, you can block that scanner for, say, 15 minutes. Since
+the time period between detection and implementation of the block is
+relatively short, the scanner will be blocked by the time he scans
+x.x.x.68. So instead of finding an open DNS port, the scanner does
+not see anything at all. He is effectively blinded, and does not
+detect any of the services on your servers.
+
+This applies even to a single host. If a rule blocks when someone
+scans a host on port 1, by the time the scanner reaches port 80 for
+example, he may already be blocked.
+
+Hacker Block: Let's say someone uses an exploit tool to check for
+a web server vulnerability (i.e. Unicode, Code Red, etc). If he uses
+the tool against your web server, Snort will detect the attack, and
+can reconfigure your firewall to block that intruder for, say,
+4 hours. The first packet (i.e. GET /scripts/../../winnt/system32/
+cmd.exe?dir) will enter your web server. Because such attacks can
+happen quickly, should your web server be vulnerable, the attacker
+can already launch some code. For example, he may be trying to TFTP
+some trojan into the web server. If SnortSam blocks the intruder,
+chances are good that he will not be able to do any further damage
+(such as downloading trojans) because he will be blocked.
+
+Trojan Block and Policy Block: You can configure Snort rules to block
+when certain traffic pattern are detected. That can be an outgoing 
+connection from a DDoS trojan (i.e. Stacheldraht), or just a
+connection to a file sharing service (i.e. Napster). You can modify
+the rule so that either the source (your internal machine) will be
+blocked so that it can not establish any other connections to the 
+Internet, or you can block the destination (i.e. Napster server)
+so that no one else (including the triggering user) can connect to
+that destination.
+
+
+Q: How can I block with a threshold level on one set of rules, but 
+block with a different threshold level on other rules?
+
+A: Excellent question. If you have an attack threshold configured for
+incoming attacks (port scans), but you don't want to use an attack
+threshold for outgoing attacks (DDoS), you would have to run two
+different SnortSam configurations on the same firewall, just on 
+different ports. Currently, Snort will send blocking requests to all
+agents listed. Future versions of the plugin will allow for a more
+extensive parameter set in the Snort rules that will support tagged
+agents.
+
+
+The basic problem is that one can look at parameters from the sensor
+perspective and from the firewall perspective. I personally
+don't want to specify too many parameters in the Snort rules, but
+instead move those (and the intelligent processing) out to a
+different host, the firewall. These things can be played with and
+adjusted as the program matures.
+
+The concept of integrating IDS systems and firewalls is still in its
+infancy. These systems will mature over time, and so will SnortSam.
+
+SnortSam is available through the SnortSam website at
+http://www.snortsam.net via FTP and CVS. The snort plugin portion
+will hopefully be included in the CVS tree of Snort shortly. Both
+are available to further development by the open source community.
+You may direct any questions, updates, and bug reports directly to
+me via email.
+
+Regards,
+Frank (frank@knobbe.us)
+
+
+
+-------------------------------------------------------------------------------
+$Id: FAQ,v 1.3 2003/03/09 23:57:40 fknobbe Exp $
+

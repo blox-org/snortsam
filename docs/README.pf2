@@ -1,0 +1,157 @@
+README.pf2 - Olli Hauer <ohauer@gmx.de>
+-------------------------------------------------------------------------------
+
+1. Description.
+
+This plugin is for IP blocking on different versions of *BSD Operating System.
+
+The plugin supports anchors and tables, but they will not created for you!
+
+It now uses a new kind of configuration options ( option=value option2=value2
+etc. ) Please see 3. Options to obtain a full list of available options.
+Note : This is not a pf tutorial, please read the pf documentation to understand
+the concepts of anchors, tables, rulesets etc. .
+
+
+2. Compatibility.
+
+This latest release supports the following OS/Versions :
+
+OpenBSD > 4.0
+FreeBSD > 6.0 with pf support (as module or compiled into the kernel)
+NetBSD ? with pf support (tested on NetBSD 5.0 i386)
+
+
+3. Options.
+
+This is the list of pf2 options that you can set in the configuration file:
+----------------------------------------------------------------------------
+anchor=[string] default: anchor=snortsam
+
+ Sets the anchor name used to hold the tables/rulesets.
+ To disable the usage of anchor use anchor=none or anchor=notused.
+
+
+table=[string] default: table=block, which results in tables blockin and blockout
+
+ The tablename in/outside an anchor.
+ In addition to the table name the suffix 'in' and 'out' are added,
+ so a table defined table=badip results into 'badipin' and 'badipout'.
+
+
+kill=[string] default: kill=all
+
+ Kill the pf states from/to the IP address we receive to block,
+ else existing connections stay alive.
+ Valid options are:
+   all : kill all states to/from the IP address
+   dir : kill only states alerted with the direction
+   no  : kill no states, (keep existing connections open)
+
+
+Example pf2 config lines in snortsam.cfg:
+------------------------------------------
+1) pf2 anchor=snortsam table=block
+   - the tables blockin and blockout inside the anchor snortsam will be used.
+   - kill all existing pf states from/to the IP address.
+
+2) pf2 anchor=notused table=badguy kill=dir
+   - the tables badguyin and badguyout outside any anchor will be used.
+   - kill only existing pf states in the received direction.
+
+3) pf2 anchor=none kill=no
+   - tables blockin and blockout outside any anchor will be used.
+   - no pf states will be killed.
+
+
+pf.conf for examples above:
+---------------------------
+1)  # filter rules
+    anchor snortam
+    load config from "/etc/pf.conf.snortsam"
+
+    -- file /etc/pf.conf.snortsam --
+    # tables
+    table <blockin> persist
+    table <blockout> persist
+    # filter rules
+    block drop in quick log on bge0 from <blockin> to any
+    block drop in quick log on bge1 from any to <blockout>
+
+
+2)  # tables
+    table <badguyin> persist
+    table <badguyout> persist
+    # filter rules
+    block drop in quick log on $if_ext from <badguyin> to any
+    block drop in quick log on $if_int from any to <badguyout>
+
+3) see example 2) but table names are blockin,blockout (the default)
+
+
+All configuration options are parsed, no matter the OS/Version used, but not
+all the parsed options are used, that depends on the OS/Version used, see
+4. Notes to get a list of used/relevant options in your OS/Version.
+
+
+4. Notes.
+
+The pf2 plugin does not create any rules, it is up to you to write the ruleset
+which make usage of the two tables defined.
+
+Testing
+-------
+The following signature expects snortsam configured with fwsam(in|out) as table
+name.
+
+Create snort signatures like this, probably in local.rules:
+
+    alert tcp any any -> $your_ip 11110 (msg:"TEST log 11110/tcp"; \
+        sid:1111110;)
+    alert tcp any any -> $your_ip 11111 (msg:"TEST block 11111/tcp"; \
+        sid:1111111; fwsam:src[in],5min;)
+
+
+- start snort and snortsam, verify the processes are running, check their
+  logfiles for any errors;
+
+- verify that the test sigs fire and that alerting works before proceeding.
+  I like to have snort log via syslog, do a "telnet $your_ip 11110" from any
+  remote machine first, and then *expect* to see the "TEST log 11110/tcp"
+  in syslog. If that doesn't work for you, *fix your configuration first*.
+  It is pointless to continue without working alerting;
+
+- check that anchor, tables and rules exist after snortsam started,
+  read the pfctl manpage;
+
+    # with anchor
+    # pfctl -vsA
+    # pftcl -a fwsam -sT
+    # pfctl -a fwsam -t blockin -Ts
+    # pfctl -a fwsam -t blockin -sr
+
+    # without anchor
+    # pftcl -sT
+    # pfctl -t blockin -Ts
+
+
+- test snortsam blocking with "telnet $your_ip 11111" from any remote machine.
+  You should see a "TEST block 11111/tcp" alert in syslog, a message
+  "Blocking $src_ip" in snortsam.log, and $src_ip listed in the output from
+  "pfctl -a <anchor> -t <table> -Ts" or "pfctl -t <table> -Ts"
+
+  All traffic from $src_ip to $your_ip should be blocked now. After 5 minutes
+  you should see "Unblocking $src_ip" in snortsam.log, $src_ip removed from the
+  <table>, and traffic from $src_ip to $your_ip should be allowed again.
+
+  At least, that would be *expected* behavior.  Prepare for debugging with pfctl
+  if it doesn't work out right.
+
+- test yourself the different kill options, for example during a file transfer
+  or simple with ping in both directions.
+
+       # pfctl -ss | grep $src_ip
+       # tcpdump -net -i pflog0 host $src_ip
+
+-------------------------------------------------------------------------------
+$Id: README.pf2,v 1.2 2009/11/27 01:39:39 fknobbe Exp $

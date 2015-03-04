@@ -1,0 +1,265 @@
+README.slackware - Joey Moe <family_geek@yahoo.com>
+############################################################################
+# This Readme file is a walk-through for installing Snort with the SnortSAM
+# plugin on a computer running Slackware 10. They do not tell you how to
+# configure Snort or SnortSAM, since there is already README files for this
+# and every installation is unique, but it will be thorough. This walk-through 
+# assumes that you are saving these files to /usr/local/src. This is not a 
+# mandatory location, but it is the most common.
+#
+#	~ jmoe ~
+#
+##############################################################################
+##########                       DEPENDANCIES                       ##########
+##############################################################################
+# First there are a few dependancies that you will have to install. These are
+# not needed to run Snort, but they will be needed to run SnortSAM later. The
+# dependancies need to be installed in the order listed here:
+#
+# libgpg-error-1.0 (http://bent.latency.net/bent/darcs/libgpg-error-1.0/src)
+#
+# To install:
+#	tar zxvf libgpg-error-1.0.tar.gz
+#	change directories to the libgpg-error-1.0 folder
+#	./configure
+#	make
+#	make install
+#	make clean
+#
+# libgcrypt-1.2.0 (http://lists.gnupg.org/pipermail/gnupg-announce/2004q2/000167.html)
+#
+# To install:
+#	tar zxvf libgcrypt-1.2.0.tar.gz
+#	change directories to the libgcrypt-1.2.0 folder
+#	./configure
+#	make
+#	make install
+#	make clean
+#	Restart the computer
+#
+# gnutls-1.0.24 (http://lists.gnupg.org/pipermail/gnutls-dev/2005-January/000807.html)
+#
+# To install:
+#	tar zxvf gnutls-1.0.24.tar.gz
+#	change directories to the gnutils-1.0.24 folder
+#	./configure
+#	make
+#	make install
+#	make clean
+#	Restart services
+#
+# libprelude-0.9.0-rc15 (http://www.prelude-ids.org/rubrique.php3?id_rubrique=6)
+#
+# To install:
+#	tar zxvflibprelude-0.9.0-rc15.tar
+#	change directories to the libprelude-0.9.0-rc14 folder
+#	./configure
+#	make
+#	make install
+#	make clean
+#	Restart services
+#
+# automake-1.9.2 (http://lists.gnu.org/archive/html/autoconf/2004-09/msg00203.html)
+#
+# To install:
+#
+#	tar zxvf automake-1.9.2.tar.gz
+#	change directories to the automake-1.9.2 folder
+#	./configure
+#	make
+#	make install
+#	make clean
+#
+# 	(You might want to do a "automake --version" to verify that 1.9.2 is
+#	 your current version)
+#
+#
+# Now that you have your dependancies installed, now we have to install Snort.
+# I configured Snort to log to a MYSQL database, so I will be including this
+# in this README file. 
+##############################################################################
+##########                      INSTALLING SNORT                     #########
+##############################################################################
+#
+# Snort-2.4.0 (www.snort.org)
+# 
+# To Install:
+#	tar zxvf snort-2.4.0.tar.gz
+#	change directories to the Snort-2.4.0 folder
+#	./configure --with-mysql=/usr
+#	make
+#	make install
+#	make clean
+#
+# Snort-2.4.0 does not include the rules folder. You will have to download the
+# current rule set. You can et this from www.snort.org. Make sure to copy this
+# to your snort-2.4.0 root directory or point your snort.conf file to the location
+# where you save it.
+#
+# With Snort installed we now have to create the MYSQL database. But before we 
+# we can create the database we need to setup MYSQL. I chose to use the MYSQL 
+# installation that came with the Slackware distro. 
+#
+# MYSQL (OPTIONALLY: www.mysql.org)
+#
+# To Configure:
+#	su mysql
+#	mysql_install_database
+#	/usr/bin/mysqld_safe &
+#	/usr/bin/mysqladmin -u root password "your password"
+#		(DO NOT INCLUDE QUOTES! This sets your MYSQL admin password)
+#	mysql -u root -p
+#		(You will be prompted for the password you just provided)
+#		(Once you enter a password you will be given a MYSQL prompt)
+#	create database snort;
+#		(you must include the semicolon at the end)
+#	connect snort;
+#	source /usr/local/src/snort-2.4.0/schemas/create_mysql;
+#		(you will see the creation of numerous tables)
+#		(as verification, check the tables)
+#	show tables;
+#
+# Next you wan to set permissions for your new snort database. This includes
+# both accounts and passwords:
+#
+#	grant CREATE,INSERT,SELECT,DELETE,UPDATE on snort.* to snort;
+#	grant CREATE,INSERT,SELECT,DELETE,UPDATE on snort.* to snort@localhost;
+#	grant CREATE,INSERT,SELECT,DELETE,UPDATE on snort.* to root;
+#	grant CREATE,INSERT,SELECT,DELETE,UPDATE on snort.* to root@localhost;
+#
+#	set password for 'snort'@'%'=password('your password');
+#	set password for 'root'@'%'=password('your password');
+#	set password for 'snort'@'localhost'=password('your mysql password');
+#	set password for 'root'@'localhost'=password('your mysql password');
+#
+#	exit;
+#		(you will be brought back to a command line prompt)
+#	exit;
+#		(you should be brought back to a root prompt)
+#
+# 
+# Next we need to download and install a package that is supposed to enhance
+# the Snort MYSQL database. This file is snortdb-extra.gz. We need to download 
+# it to the /snort-2.4.0/contrib folder, (DO NOT UNCOMPRESS IT).
+#
+#	snortdb-extra.gz (http://cvs.snort.org/viewcvs.cgi/snort/contrib/Attic/snortdb-extra.gz)
+#
+# 	zcat /usr/local/src/snort-2.4.0/contrib/snortdb-extra.gz | mysql -p snort
+#	
+# Now we have to adjust the snort.conf file to work with the newly configured
+# snort database:
+#
+#	vi /usr/local/src/snort-2.4.0/etc/snort.conf
+# 	:set number (this allows you to see the line numbers)
+#
+# On line 575 you will uncomment the line (remove the proceeding pound sign)
+# and make the following changes to the user, password, dbname, and host
+# fields:
+#	"user"= the account you want to use to access the MYSQL snort database
+#	"password"= password for the "user" you selected
+#	"dbname"=snort
+#	"host"=name of the localhost
+#
+# From here, you can escape, save, and exit.
+#
+# You have to create a folder in the /var/log directory for snort to log to,
+# or else you will get an error
+#
+# 	mkdir /var/log/snort
+#
+# This would be a good time to verify that Snort is working. While there are
+# numerous options for snort to use, I am only using the option to log to the
+# snort database. -c option takes one argument: the path to the snort.conf
+# file.
+#
+#	snort -c /usr/local/src/snort-2.4.0/etc/snort.conf
+#
+##############################################################################
+##########                  INSTALLING SNORTSAM                     ##########
+##############################################################################
+# Now that you know snort is working correctly, now it is time to take it up a 
+# notch. I know there are many different scenarios and even more opinions of 
+# how to deploy your SnortSAM setup, this README file assumes you are
+# installing Snort and SnortSAM on the same machine.
+#
+# You have to move to the SnortSAM directory and change the permissions on the 
+# shell script that creates snortsam:
+#
+#	
+#	tar zxvf snortsam-src-2.40.tar.gz  (www.snortsam.net/download.html)
+#	change directories to the snortsam folder
+#	chmod +x makesnortsam.sh
+#	./makesnortsam.sh
+#
+# This creates two programs. (snortsam and snortsam-debug).Move these programs 
+# to the /usr/local/bin folder.
+##############################################################################
+##########                     PATCHING SNORT                       ##########
+##############################################################################
+# This is the last step to getting Snort to work with SnortSAM. It takes a 
+# little bit of work, but the pay off is huge. We have to first change the
+# permissions on the patchsnort.sh file and then run it. The patch takes only
+# one argument, the path to the snort-2.4.0 folder:
+#
+#	tar zxvf snortsam-patch.tar.gz (www.snortsam.net/download.html)
+#	rename the folder "snortsam-patch"
+#	change directories to the snortsam-patch
+#	chmod +x patchsnort.sh
+#	./patchsnort.sh /usr/local/src/snort-2.4.0
+#
+# At this point, you have change directories so you wind up in the snort-2.4.0 
+# folder. Once in the snort-2.4.0 directory, you have to run the following 
+# commands in the following order:
+#
+#	aclocal
+#
+#	When you run aclocal, you will get a small series of errors. This is 
+#	a quick run down of the files and modifications you need to make to 
+#	fix these:
+#
+#	In the file configure.in you will need to make the following changes:
+#
+#		- Line 169 originally looks like this:
+#		  AC_DEFUN(SN_CHECK_DECL,[
+#
+#		  Change the line so it reads:
+#		  AC_DEFUN([SN_CHECK_DECL],[
+#
+#		- Line 202 originally looks like this:
+#		  AC_DEFUN(SN_CHECK_DECL,
+#		  
+#		  Change the line so it reads:
+#		  AC_DEFUN([SN_CHECK_DECL],
+#
+#		- Line 298 originally looks like this:
+#		  AC_DEFUN(FAIL_MESSAGE,[
+#
+#		  Change the line so it reads:
+#		  AC_DEFUN([FAIL_MESSAGE],[
+#
+#
+#	In the file /usr/local/share/aclocal/libgcrypt.m4 you  will need to 
+#	make the following changes:
+#
+#		- Line 23 originally looks like this:
+#		  AC_DEFUN(AM_PATH_LIBGCRYPT,
+#
+#		  Change the line so it reads:
+#		  AC_DEFUN([AM_PATH_LIBGCRYPT],
+#
+#	Now that aclocal is not reporting any errors you can finish the rest 
+#	of the snort patch process without any problems:
+#
+#	autoheader
+#	automake --add-missing
+#	autoconf
+#
+# Finally, you have to configure snort the same way you did when when we first 
+# installed it. Don't forget to include the MYSQL option for database support.
+#
+# From this point please see the respective README files for configuring Snort
+# and SnortSAM. These files will show you how to fine tune your installation
+##############################################################################
+##############################################################################
+$Id: README.slackware,v 1.2 2005/11/10 11:03:47 fknobbe Exp $
+

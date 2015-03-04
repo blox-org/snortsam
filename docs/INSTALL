@@ -1,0 +1,166 @@
+INSTALL - Frank Knobbe <frank@knobbe.us>
+-------------------------------------------------------------------------------
+
+
+1) Compile and install SnortSam.
+
+2) Patch and recompile Snort.
+
+3) Configure SnortSam.
+
+4) Configure Snort.
+
+5) Firewall dependent configs.
+
+
+
+
+1) To build SnortSam from source, download the sources from the SnortSam web
+   site at http://www.snortsam.net. You can download it via HTTP or FTP.
+   (FTP site is at ftp://ftp.snortsam.net/Public/SnortSam). Alternatively, you
+   can check the sources out from CVS with:
+
+      cvs -d :pserver:anonymous@cvs.snortsam.net:/cvsroot co snortsam
+
+   Once you have the source (which you should since you are reading this file),
+   just flag the make script 'makesnortsam.sh' as executable with:
+
+      chmod +x makesnortsam.sh
+
+   Then just run the script:
+
+      ./makesnortsam.sh
+
+   This should compile Snortsam, which has been successfully compiled and run
+   under FreeBSD, Linux, Solaris, and Windows.
+
+   To compile Snortsam under Windows, open the SnortSam.dsp file with 
+   Microsoft's Visual C++. Then just select your Project (Normal or Debug,
+   with OPSEC or without).
+
+   | Please see README.opsec for additional requirements when using the OPSEC
+   | API with Checkpoints OPSEC SDK.
+
+   Now that SnortSam is compiled, simply copy the binary into a folder, for
+   example /usr/local/bin.
+
+   You can also download one of the precompiled versions from the SnortSam
+   web site.
+
+
+
+2) To add the SnortSam plugin into Snort, download the snortsam-patch.tar.gz
+   file from the SnortSam web or FTP site. You can also check it out of CVS:
+
+      cvs -d :pserver:anonymous@cvs.snortsam.net:/cvsroot co snort-plugin
+
+   After you extract the tar ball, you should see following files:
+      patchsnort.sh
+      snortpatch8
+      snortpatch9
+      snortpatchb
+
+   Set the executable flag on the patch script:
+
+      chmod +x patchsnort.sh
+
+   and then run the script with the directory to Snort as the parameter,
+   for example:
+
+      ./patchsnort.sh /usr/local/src/snort
+
+   Then recompile Snort.
+
+   Recompiling Snort can be done in two ways. If you retrieved the source of
+   Snort via CVS, simply run snort/autojunk.sh, and then run ./configure and 
+   make as usual.
+   If you built Snort from tarball, and you don't have the autojunk.sh file in
+   the snort directory, then change into /snort and run following commands
+   manually:
+
+      aclocal
+      autoheader
+      automake --add-missing
+      autoconf
+
+   Then run ./configure and make as usual.
+
+
+
+3) SnortSam only takes one program argument which is the path and name of the 
+   configuration file. If not specified, SnortSam will use /etc/snortsam.conf.
+   (under Windows, SnortSam will use snortsam.cfg from the same directory that
+   SnortSam was started from).
+
+   This configuration file contains a variety of options. A sample
+   configuration file snortsam.conf.sample is provided and contains a full
+   description of the options.
+
+   At a very minimum, you need to specify what hosts (running Snort) are
+   allowed to connect to SnortSam. This is done with the ACCEPT option.
+
+      accept 10.0.0.0/8     for example will accept connections from the whole
+                            10. network.
+
+   Then configure the firewall you want to block on. See the README.<firewall>
+   for options. Once configured, just run SnortSam with the path and name of
+   the config file, for example:
+
+      ./snortsam /usr/local/etc/snortsam.conf
+
+
+
+4) Now that you have SnortSam running and listening, you need to configure
+   Snort.
+   The configuration is done in two places.
+
+   First you need to add the output plugin that let's Snort send blocking
+   requests to SnortSam. Open your snort.conf file and add:
+
+      output alert_fwsam: <snortsambox>
+
+   <snortsambox> is the name or IP address of the host running SnortSam.
+   Other options can be set, for example if you configured SnortSam to use a
+   different port than the default port (tcp 898), and set a password, or key,
+   you would use:
+
+      output alert_fwsam: <snortsambox>:<port>/<password>
+
+   If you have more than one SnortSam host (for example in a remote location),
+   just add them on the same line, separated by a space. For example:
+
+      output alert_fwsam: localhost/myhostpass  sam.corp.com:1050/corppass
+
+
+   Now that you have the output plugin configured, you need to configure the
+   Snort rules that should invoke a block on the firewall. To do that, simply
+   add an fwsam: statement in the rule. For example:
+
+      alert tcp $EXTERNAL_NET any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB-
+      ATTACKS /bin/ps command attempt"; flow:to_server,established; 
+      uricontent:"ps%20"; nocase; sid:1329; classtype:web-application-attack;
+      rev:4;)
+    
+   Add a 'fwsam: <who>, <duration>;' so that the line reads:
+
+      alert tcp $EXTERNAL_NET any -> $HTTP_SERVERS $HTTP_PORTS (msg:"WEB-
+      ATTACKS /bin/ps command attempt"; flow:to_server,established; 
+      uricontent:"ps%20"; nocase; sid:1329; classtype:web-application-attack;
+      rev:4; fwsam: src, 5 minutes;)
+
+   Please read README.rules for a more detailed description of the fwsam
+   parameters.
+
+
+
+5) Depending on the type of firewall you want to block on, please read the
+   README.<firewall> documentation for required configuration changes on that
+   particular firewall. These files should also list the firewall dependent
+   options for the snortsam.conf file. See also README.conf for a summary of
+   configuration options.
+
+
+
+-------------------------------------------------------------------------------
+$Id: INSTALL,v 1.4 2004/07/26 23:58:58 fknobbe Exp $
+

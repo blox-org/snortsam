@@ -1,0 +1,107 @@
+README.rules - Frank Knobbe <frank@knobbe.us>
+-------------------------------------------------------------------------------
+
+This file explains the syntax of the "fwsam" statement in the Snort rule files.
+It is currently just ripped from the old FAQ. I may clean it up later if needed.
+
+
+
+Once the snort.conf file is configured, you need to modify the rules so that 
+they invoke the blocking request. This is done by adding following
+statement to the rule:
+
+  fwsam: who[how],time;
+
+         who: Can be: src, source, dst, dest, destination 
+
+              IP address to be blocked according to snort rule (some rules are
+              reversed, i.e. homenet -> any and you want to block any, so DST
+              would be appropriate)
+
+         how: Optional. Can be: In, out, src, dest, either, both, this, conn,
+                                                                 or connection
+              Tells the firewall to block packets INcoming from host, OUTgoing
+              to host, EITHERway, or only THIS connection (IP/service pair).
+              (If you have a Checkpoint firewall, See 'fw sam' for more
+              information.)
+
+        time: Duration of block in seconds. (Accepts 'days', 'months', 'weeks',
+              'years', 'minutes', 'seconds', 'hours'. Alternatively, a value 
+              of 0, or the keyword 'PERManent', 'INFinite', or 'ALWAYS', will
+              block the host permanently. Be very careful with this!)
+              Tells the firewall how long to block packets from the host.
+
+Examples:
+
+  fwsam: src[either],15min           (blocks to and from source for 15 minutes)
+     or  dst[in], 2 days 4 hours     (blocks from dest. for 2 days and 4 hours) 
+     or  src, 1 hour                 (blocks to and from source for an hour)
+
+Defaults to: src[either],5min
+
+That means "fwsam: dst" will block the destination (right IP in Snort rule) 
+inbound and outbound for 5 minutes.
+
+
+This statement is very dependent on the rule itself. Here are some 
+real Snort example rules:
+
+alert tcp any any -> $HTTP_SERVERS 80 
+   (msg:"WEB-MISC http directory traversal"; flags: A+; 
+   content: "..\\";reference:arachnids,298; fwsam: 15 minutes;) 
+
+The rule applies to a connection from any to your servers. That means
+the source is the attacker, the destination is you. The above fwsam
+statement will block the source for 15 minutes.
+
+alert tcp $HOME_NET 23 -> any any 
+   (msg:"TELNET not on console"; flags: A+; 
+   content:"not on system console"; nocase; 
+   reference:arachnids,365; fwsam: dest, 1 day;) 
+
+This rule applies to connections from your host to the attacker. The 
+source is your system, the destination is the attacker. That means
+you would want to block the destination. Above fwsam statement will
+block the destination for a whole day.
+
+Both examples will block incoming and outgoing connections to the
+attackers. If you wanted to block only incoming connections, but want
+to allow outgoing connections to the attacker (maybe for an 
+investigative scan), then the fwsam statements would have to be
+modified with [in] to explicitly block only incoming connections.
+
+i.e. fwsam: src[in], 15 minutes
+     fwsam: dest[in], 1 day
+
+For modifying Snort rules, it is best that you first figure out, who
+you want to block (which depends on the rule itself). Then you have to
+decide if you want to completely block the offender, or only block
+incoming (or perhaps only block outgoing connections). Finally,
+decide how long you want to block them.
+
+It is recommended that you start with short time intervals for 
+testing purposes and increase the time once the rule is 'tuned'.
+
+
+Instead of modifying the Snort rules, you can also create a file named
+sid-block.map which has to be in the same directory as Snort's sid-msg.map
+file (typically etc). In this file you can list the fwsam option using
+following syntax:
+
+  <sid>:<option>
+
+For example:
+
+   1023: src, 15 min
+
+   Alternatively, you may use a | (pipe) instead of a : (colon).
+   This has the same effect as adding "fwsam: src, 15min;" to the Snort rule
+   with SID 1023. 
+
+   You can specify options in both places (rules and sid-block.map file), but 
+   the sid file takes priority. The file has to be in the same directory as the
+   other Snort config files (ie. sid-msg.map).
+
+-------------------------------------------------------------------------------
+$Id: README.rules,v 1.1 2004/06/23 19:48:11 fknobbe Exp $
+
